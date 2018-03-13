@@ -464,6 +464,12 @@ public:
 #define MP_MESH_TAG              0xF9
 #define MP_SCENE_TAG             0xFA
 
+// ANDREI
+extern int nclevels;
 
+const int nclasses = 24;
+const int classes[] = {3, 5, 6, 7, 9, 10, 11, 12, 13,
+                       15, 16, 18, 19, 22, 24, 25, 26,
+                       27, 28, 30, 31, 32, 34, 37};
 
 #endif

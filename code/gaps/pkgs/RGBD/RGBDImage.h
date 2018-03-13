@@ -123,6 +123,9 @@ public:
   virtual void InvalidateOpenGL(void);
   virtual void UpdateOpenGL(void);
 
+  // ANDREI
+  int draw_depth;
+
 private:
   // Internal variables
   friend class RGBDConfiguration;

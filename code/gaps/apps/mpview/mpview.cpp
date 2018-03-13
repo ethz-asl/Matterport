@@ -1,6 +1,8 @@
 // Source file for the mp viewer program
 
-
+// ANDREI
+#include <unistd.h>
+#include <cmath>
 
 ////////////////////////////////////////////////////////////////////////
 // Include files 
@@ -81,7 +83,10 @@ static int GLUTbutton[3] = { 0, 0, 0 };
 static int GLUTmouse_drag = 0;
 static int GLUTmodifiers = 0;
 
-
+// ANDREI
+int iterate_views = 1;
+int nclevels;
+int draw_depth = 0;
 
 ////////////////////////////////////////////////////////////////////////
 // Info functions
@@ -500,12 +505,14 @@ SelectImage(MPImage *image)
   // Release old image
   if (selected_image) {
     selected_image->rgbd.ReleaseChannels();
+    selected_image->rgbd.ReleaseDepthChannel();
     selected_image = NULL;
   }
 
   // Read new image
   if (image) {
     image->rgbd.ReadChannels();
+    image->rgbd.ReadDepthChannel();
     selected_image = image;
   }
 }
@@ -565,7 +572,7 @@ Pick(int x, int y,
   int pick_tolerance = 10;
   glLineWidth(pick_tolerance);
   glPointSize(pick_tolerance);
-  glDisable(GL_LIGHTING);
+  //glDisable(GL_LIGHTING);
 
   // Initialize bookkeeping
   RNArray<R3SceneNode *> nodes;
@@ -736,6 +743,16 @@ void GLUTStop(void)
 
 void GLUTRedraw(void)
 {
+    // ANDREI
+    if(iterate_views){
+        snap_image_index++;
+        if(snap_image_index >= house->images.NEntries()){
+            GLUTStop();
+        }
+
+        SnapImage(house->images.Kth(snap_image_index));
+    }
+
   // Clear window 
   glClearColor(background.R(), background.G(), background.B(), 1.0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -746,6 +763,8 @@ void GLUTRedraw(void)
 
   // Set viewing transformation
   if (snap_image) {
+      snap_image->rgbd.draw_depth = draw_depth;
+
     // Set viewport
     glViewport(0, 0, snap_image->width/2, snap_image->height/2);
     
@@ -764,27 +783,27 @@ void GLUTRedraw(void)
   }
 
   // Set lights
-  static GLfloat light1_position[] = { 3.0, 4.0, 5.0, 0.0 };
-  glLightfv(GL_LIGHT1, GL_POSITION, light1_position);
-  static GLfloat light2_position[] = { -3.0, -2.0, -3.0, 0.0 };
-  glLightfv(GL_LIGHT2, GL_POSITION, light2_position);
+  //static GLfloat light1_position[] = { 3.0, 4.0, 5.0, 0.0 };
+  //glLightfv(GL_LIGHT1, GL_POSITION, light1_position);
+  //static GLfloat light2_position[] = { -3.0, -2.0, -3.0, 0.0 };
+  //glLightfv(GL_LIGHT2, GL_POSITION, light2_position);
 
   // Set clip planes
   LoadClipPlanes();
 
   // Draw selected image
   if (selected_image) {
-    glDisable(GL_LIGHTING);
-    glColor3d(1.0, 1.0, 0.0);
-    glLineWidth(3.0);
-    selected_image->DrawCamera();
-    glLineWidth(1.0);
-    selected_image->Draw(MP_SHOW_IMAGES | image_draw_flags | MP_COLOR_BY_RGB);
+      //glDisable(GL_LIGHTING);
+      //glColor3d(1.0, 1.0, 0.0);
+      //glLineWidth(3.0);
+      //selected_image->DrawCamera();
+      //glLineWidth(1.0);
+      //selected_image->Draw(MP_SHOW_IMAGES | image_draw_flags | MP_COLOR_BY_RGB);
   }
 
   // Draw selected region
   if (selected_region) {
-    glDisable(GL_LIGHTING);
+      //glDisable(GL_LIGHTING);
     glColor3d(1.0, 1.0, 0.0);
     glLineWidth(3.0);
     selected_region->DrawSurfaces(MP_SHOW_SURFACES | MP_DRAW_EDGES);
@@ -793,7 +812,7 @@ void GLUTRedraw(void)
 
   // Draw selected object
   if (selected_object) {
-    glDisable(GL_LIGHTING);
+      //glDisable(GL_LIGHTING);
     glColor3d(1.0, 1.0, 0.0);
     glLineWidth(3.0);
     selected_object->DrawBBox(MP_DRAW_EDGES);
@@ -812,14 +831,14 @@ void GLUTRedraw(void)
 
   // Draw clip box
   if (show_clip_box) {
-    glDisable(GL_LIGHTING);
+      //glDisable(GL_LIGHTING);
     glColor3d(0.4, 0.4, 0.4);
     clip_box.Outline();
   }
   
   // Draw axes
   if (show_axes) {
-    glDisable(GL_LIGHTING);
+      //glDisable(GL_LIGHTING);
     glLineWidth(3);
     DrawAxes();
     glLineWidth(1);
@@ -833,11 +852,29 @@ void GLUTRedraw(void)
     if (batch) GLUTStop();
   }
 
+  // ANDREI
+  if(iterate_views){
+      R2Image image(GLUTwindow_width, GLUTwindow_height, 3);
+      image.Capture();
+
+      MPImage *real_image = house->images.Kth(snap_image_index);
+      
+      char image_filename[128];
+      sprintf(image_filename, "object_masks/%s_i%d_%d_mask.png", real_image->name,
+              real_image->camera_index, real_image->yaw_index);
+      image.Write(image_filename);
+      
+      //sleep(1);
+  }
+
   // Swap buffers 
   glutSwapBuffers();
-}    
 
-
+  // ANDREI
+  if(iterate_views){
+      glutPostRedisplay();
+  }
+}
 
 void GLUTResize(int w, int h)
 {
@@ -1117,6 +1154,12 @@ void GLUTKeyboard(unsigned char key, int x, int y)
     scene_draw_flags.XOR(MP_SHOW_SCENE);
     break;
 
+  case 'D':
+  case 'd':
+      draw_depth = 1 - draw_depth;
+      SnapImage(house->images.Kth(snap_image_index));
+      break;
+
   case 'V': 
   case 'v':
     region_draw_flags.XOR(MP_DRAW_VERTICES);
@@ -1185,22 +1228,22 @@ void GLUTInit(int *argc, char **argv)
   // Initialize lighting
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-  static GLfloat lmodel_ambient[] = { 0.2, 0.2, 0.2, 1.0 };
+  static GLfloat lmodel_ambient[] = { 1.0, 1.0, 1.0, 1.0 };
   glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lmodel_ambient);
-  glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
-  static GLfloat light0_diffuse[] = { 0.5, 0.5, 0.5, 1.0 };
-  static GLfloat light0_position[] = { 0.0, 0.0, 1.0, 0.0 };
-  glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
-  glLightfv(GL_LIGHT0, GL_POSITION, light0_position);
-  glEnable(GL_LIGHT0);
-  static GLfloat light1_diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
-  glLightfv(GL_LIGHT1, GL_DIFFUSE, light1_diffuse);
-  glEnable(GL_LIGHT1);
-  static GLfloat light2_diffuse[] = { 0.5, 0.5, 0.5, 1.0 };
-  glLightfv(GL_LIGHT2, GL_DIFFUSE, light2_diffuse);
-  glEnable(GL_LIGHT2);
-  glEnable(GL_NORMALIZE);
-  glEnable(GL_LIGHTING); 
+  //glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
+  //static GLfloat light0_diffuse[] = { 0.5, 0.5, 0.5, 1.0 };
+  //static GLfloat light0_position[] = { 0.0, 0.0, 1.0, 0.0 };
+  //glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
+  //glLightfv(GL_LIGHT0, GL_POSITION, light0_position);
+  //glEnable(GL_LIGHT0);
+  //static GLfloat light1_diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
+  //glLightfv(GL_LIGHT1, GL_DIFFUSE, light1_diffuse);
+  //glEnable(GL_LIGHT1);
+  //static GLfloat light2_diffuse[] = { 0.5, 0.5, 0.5, 1.0 };
+  //glLightfv(GL_LIGHT2, GL_DIFFUSE, light2_diffuse);
+  //glEnable(GL_LIGHT2);
+  //glEnable(GL_NORMALIZE);
+  //glEnable(GL_LIGHTING); 
 
   // Initialize color settings
   glEnable(GL_COLOR_MATERIAL);
@@ -1208,6 +1251,31 @@ void GLUTInit(int *argc, char **argv)
 
   // Initialize depth testing
   glEnable(GL_DEPTH_TEST);
+
+  // ANDREI
+  nclevels = int(cbrt(house->objects.NEntries()));
+
+  FILE *index = fopen("object_masks/index", "w");
+  for(int i = 0; i < house->objects.NEntries(); i++){
+      MPObject *object = house->objects.Kth(i);
+      int c[3];
+
+      int aux = object->house_index + 1;
+      for(int k = 0; k < 3; k++){
+          c[k] = (aux % (nclevels + 1)) * int(255.0 / nclevels);
+          aux /= nclevels + 1;
+      }
+
+      int cat = 0;
+      if(object->category){
+          cat = object->category->mpcat40_id;
+      }
+
+      fprintf(index, "%d %d %d %d %d\n", object->house_index, 
+              cat, c[0], c[1], c[2]);
+  }
+
+  fclose(index);
 
   // Initialize GLUT callback functions 
   glutDisplayFunc(GLUTRedraw);
@@ -1237,7 +1305,19 @@ void GLUTMainLoop(void)
   R3Camera camera(initial_camera_origin, initial_camera_towards, initial_camera_up, 0.54, 0.45, 0.01 * r, 100.0 * r);
   R2Viewport viewport(0, 0, GLUTwindow_width, GLUTwindow_height);
   viewer = new R3Viewer(camera, viewport);
+
+  // ANDREI
+  region_draw_flags.XOR(MP_DRAW_BBOXES);
+  object_draw_flags.XOR(MP_DRAW_BBOXES);
+  image_draw_flags.XOR(MP_DRAW_BBOXES);
   
+  region_draw_flags.XOR(MP_DRAW_FACES);
+  object_draw_flags.XOR(MP_DRAW_FACES);
+  scene_draw_flags.XOR(MP_DRAW_FACES);
+  mesh_draw_flags.XOR(MP_DRAW_FACES);
+  
+  color_scheme = MP_COLOR_BY_OBJECT | MP_COLOR_BY_INDEX;
+
   // Run main loop -- never returns 
   glutMainLoop();
 }

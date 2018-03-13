@@ -1334,12 +1334,34 @@ UpdateOpenGL(void)
   // Read color channels
   // ReadColorChannels();
   
+  RNScalar max_depth = 0.0;
+  for (int iy = 0; iy < height; iy++) {
+      for (int ix = 0; ix < width; ix++) {
+          if(PixelDepth(ix, iy) > max_depth){
+              max_depth = PixelDepth(ix, iy);
+          }
+      }
+  }
+
   // Create temporary R2Image
   R2Image rgb_image(width, height, 3);
   for (int iy = 0; iy < height; iy++) {
-    for (int ix = 0; ix < width; ix++) {
-      rgb_image.SetPixelRGB(ix, iy, PixelColor(ix, iy));
-    }
+      for (int ix = 0; ix < width; ix++) {
+          if(draw_depth){
+              RNScalar depth = PixelDepth(ix, iy);
+              
+              if(depth < 0){
+                  depth = 0;
+              }
+              
+              depth /= max_depth;
+              
+              RNRgb dcolor = RNRgb(depth, depth, depth);
+              rgb_image.SetPixelRGB(ix, iy, dcolor);
+          } else {
+              rgb_image.SetPixelRGB(ix, iy, PixelColor(ix, iy));
+          }
+      }
   }
 
   // Release color channels

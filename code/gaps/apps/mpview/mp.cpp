@@ -65,7 +65,7 @@ static void
 LoadColor(int k)
 {
   // Make array of colors
-  const int ncolors = 72;
+  /*const int ncolors = 72;
   const RNRgb colors[ncolors] = {
     RNRgb(0.5, 0.5, 0.5), RNRgb(1, 0, 0), RNRgb(0, 0, 1), 
     RNRgb(0, 1, 0), RNRgb(0, 1, 1), RNRgb(1, 0, 1), 
@@ -91,12 +91,22 @@ LoadColor(int k)
     RNRgb(0.8, 0.3, 0.5), RNRgb(0.5, 0.8, 0.3), RNRgb(0.3, 0.5, 0.8), 
     RNRgb(0.8, 0.5, 0.5), RNRgb(0.5, 0.8, 0.5), RNRgb(0.5, 0.5, 0.8), 
     RNRgb(0.8, 0.8, 0.5), RNRgb(0.5, 0.8, 0.8), RNRgb(0.8, 0.5, 0.8)
-  };
+    };
 
   // Load color
-  if (k == -1) glColor3d(0.8, 0.8, 0.8);
-  else if (k == 0) RNLoadRgb(colors[0]);
-  else RNLoadRgb(colors[1 + (k % (ncolors-1))]);
+  RNLoadRgb(colors[k % ncolors]);*/ 
+
+    // ANDREI
+    int c[3];
+
+    int aux = k + 1;
+    for(int i = 0; i < 3; i++){
+        c[i] = (aux % (nclevels + 1)) * int(255.0 / nclevels);
+        aux /= nclevels + 1;
+    }
+
+    RNLoadRgb(RNRgb(c[0]/255.0, c[1]/255.0, c[2]/255.0));
+
 }
 
 
@@ -1426,7 +1436,7 @@ MPHouse(const char *name, const char *label)
 {
   // Set RGBD configuration parameters
   rgbd.SetDatasetFormat("matterport");
-  rgbd.SetDepthDirectory("undistorted_depth_images");
+  rgbd.SetDepthDirectory("matterport_depth_images");
   rgbd.SetColorDirectory("undistorted_color_images");
 }
 
